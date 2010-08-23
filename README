@@ -1,0 +1,41 @@
+upcfinder is a groovy / java library for get information about any product using 
+the UPC (Universal Producto Code) aka Bar Code.
+
+For more information about UPC, see:
+
+http://en.wikipedia.org/wiki/Universal_Product_Code
+
+The library can be used as a standar jar from JAVA code 
+(adding the upcfinder.jar) to the classpath.
+
+Java Example:
+Map information = UPCFinder.find('7501003631046');
+
+Groovy Example:
+def information = UPCFinder.find('7501003631046')
+
+As well can be executed from the commmand line as:
+
+java -cp build/libs/upcfinder.jar com.josuemb.upcfinder.xmlrpc.UPCFinder 7501003631046
+
+The information is printed as:
+
+7501003631046=[message:Database entry found, ean:7501003631046, 
+issuerCountryCode:mx, 
+lastModified:23 Jul 2009, 11:19 AM, issuerCountry:Mexico, 
+description:Caribe Cooler durazno 300mL, isCoupon:false, pendingUpdates:0, 
+size:, found:true
+
+For Java and groovy the result is a map with the same information.
+
+For building the jar file it is necessary to install gradle build tool:
+
+http://www.gradle.org/installation.html
+
+Then we can build the jar file with the instruction:
+
+gradle assemble
+
+If you have questions / comments write to:
+
+josuemb AT gmail.com either @josuemb at twitter.

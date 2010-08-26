@@ -36,6 +36,10 @@ Then we can build the jar file with the instruction:
 
 gradle assemble
 
+If you want to get the last distribution go to:
+
+http://github.com/josuemb/upcfinder/downloads
+
 If you have questions / comments write to:
 
 josuemb AT gmail.com either @josuemb at twitter.

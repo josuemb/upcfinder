@@ -25,7 +25,7 @@ dependencies {
     compile 'ch.qos.logback:logback-core:0.9.24'
     compile 'ch.qos.logback:logback-classic:0.9.24'
     compile 'org.slf4j:slf4j-api:1.6.1'
-    compile 'org.codehaus.groovy:groovy-xmlrpc:0.7'
+    compile 'org.codehaus.groovy:groovy-xmlrpc:0.8'
     compile 'jivesoftware:smack:3.1.0'
     testCompile 'junit:junit:4.8.1'
 }

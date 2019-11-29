@@ -27,7 +27,7 @@ dependencies {
     compile 'org.slf4j:slf4j-api:1.7.29'
     compile 'org.codehaus.groovy:groovy-xmlrpc:0.8'
     compile 'jivesoftware:smack:3.1.0'
-    testCompile 'junit:junit:4.8.1'
+    testCompile 'junit:junit:4.12'
 }
 
 //Get the list for all files sended

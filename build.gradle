@@ -21,7 +21,7 @@ repositories {
 
 //Dependencies for this project
 dependencies {
-    groovy group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.2'
+    groovy group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.4'
     compile 'ch.qos.logback:logback-core:1.2.3'
     compile 'ch.qos.logback:logback-classic:1.2.3'
     compile 'org.slf4j:slf4j-api:1.7.30'

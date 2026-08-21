@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2010 the original author or authors.
+ * Copyright 2003-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,146 +16,175 @@
 
 package com.josuemb.upcfinder.xmlrpc
 
+import groovy.json.JsonSlurper
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import groovy.net.xmlrpc.*
-import com.josuemb.upcfinder.UPCFinderSite
 
 /**
- * <p>Class for finding product information using UPC using XML-RPC sites.</p>
+ * <p>Class for finding product information using UPC codes via the UPCitemdb REST API.</p>
  * <p>Find information for a product using UPC code (bar code). For example:</p>
  * <pre>
- * def information = UPCFinder.find('7501003631046')
+ * def information = UPCFinder.find('0049000006346')
  * </pre>
  * <p>It can be used from command line as:</p>
  * <pre>
- * java -cp build/libs/upcfinder.jar com.josuemb.upcfinder.xmlrpc.UPCFinder 7501003631046
+ * java -cp build/libs/upcfinder.jar com.josuemb.upcfinder.xmlrpc.UPCFinder 0049000006346
  * </pre>
- * <p>Note: When information cannot foud it returns null value.
+ * <p>Note: When information cannot be found it returns null value.
+ * <p>Uses the UPCitemdb trial API (100 requests/day, no API key required).</p>
  * @author Josue Martinez Buenrrostro<josuemb@gmail.com>
- * @see com.josuemb.upcfinder.UPCFinderSite
- * @see <a href="http://en.wikipedia.org/wiki/XML-RPC">XML-RPC</a>
+ * @see <a href="https://www.upcitemdb.com/wp/docs/main/development/api/">UPCitemdb API</a>
  */
 class UPCFinder {
 
-  /**
-  * <p>Logger for the class.</p>
-  * @see logback.qos.ch
-  * @see <a href="http://logback.qos.ch">logback.qos.ch</a>
-  */  
-  static final Logger logger = LoggerFactory.getLogger(UPCFinder.class)
-	
-  /**
-  * <p>Configuration for different UPC finder sites.</p>
-  * <p>Each site could be configurated as a UPCFinderSite into array. Example:</p>
-  * <pre>
-  *static upcFinders = [
-  *    new UPCFinderSite(
-  *        uri:{upc->"http://www.upcdatabase.com/rpc"},
-  *  			findUPC:{remote,upc->remote.lookupEAN(upc)},
-  *        upcFounded:{response->response.get("message")=="Database entry found"},
-  *        getInformation:{remote,upc,response->response}
-  *    )
-  *]
-  * </pre>
-  * @see com.josuemb.upcfinder.UPCFinderSite
-  */  
-	static upcFinders = [
-	    new UPCFinderSite(
-	        uri:{upc->"http://www.upcdatabase.com/rpc"},
-    			findUPC:{remote,upc->remote.lookupEAN(upc)},
-	        upcFounded:{response->response.get("message")=="Database entry found"},
-	        getInformation:{remote,upc,response->"Hello"}
-	    )
-	]
-	
-  /**
-  * <p>Find for a upc (bar code) using a specific UPC find site.</p>
-  * @param upcFinderSite UPC Finder Site
-  * @param upc Universal Product Code
-  * @see com.josuemb.upcfinder.UPCFinderSite
-  * @see <a href="http://en.wikipedia.org/wiki/Universal_Product_Code">upc</a>
-  * @return Product information
-  */  
-  static Object find(UPCFinderSite upcFinderSite, String upc){
-      def info = null
-      try {
-          logger.info "Finding upc=$upc"
-    			def uri = upcFinderSite.uri(upc)
-          logger.debug "uri=$uri"
-		      def remote = new XMLRPCServerProxy(uri)
-		      def response = upcFinderSite.findUPC(remote, upc)
-          logger.debug "response=$response"
-		      def upcFounded = upcFinderSite.upcFounded(response)
-          logger.debug  "upcFounded=$upcFounded"
-          if(upcFounded==true) {
-              info = response
-          }            
-      } catch(e){
-          logger.error e.dump()
-          info = null
-      }
-      return info
-  }
+    /**
+     * Logger for the class.
+     */
+    static final Logger logger = LoggerFactory.getLogger(UPCFinder.class)
 
-  /**
-  * <p>Find for a upc (bar code) using all configurated UPC find sites.</p>
-  * @param upc Universal Product Code
-  * @see <a href="http://en.wikipedia.org/wiki/Universal_Product_Code">upc</a>
-  * @return Product information
-  */  
-	static Object find(String upc){
-        def info = null
-        logger.info "Finding UPC... > find(String upc)"
-        upcFinders.each{upcFinderSite ->
-            if(info==null)
-                info = find(upcFinderSite, upc)
+    /**
+     * Base URL for the UPCitemdb trial API.
+     */
+    static final String API_BASE_URL = 'https://api.upcitemdb.com/prod/trial/lookup'
+
+    /**
+     * Maximum number of retries when rate-limited.
+     */
+    static final int MAX_RETRIES = 3
+
+    /**
+     * Delay in milliseconds between retries when rate-limited.
+     */
+    static final long RETRY_DELAY_MS = 7000
+
+    /**
+     * <p>Look up a single UPC code via the UPCitemdb REST API.</p>
+     * @param upc Universal Product Code
+     * @see <a href="http://en.wikipedia.org/wiki/Universal_Product_Code">UPC</a>
+     * @return Map with product information (title, brand, description, etc.) or null if not found
+     */
+    static Map find(String upc) {
+        logger.info "Finding upc=$upc"
+        int retries = 0
+
+        while (retries <= MAX_RETRIES) {
+            try {
+                def url = "${API_BASE_URL}?upc=${URLEncoder.encode(upc, 'UTF-8')}"
+                logger.debug "url=$url"
+
+                def connection = new URL(url).openConnection()
+                connection.setRequestProperty('Accept', 'application/json')
+                connection.setRequestProperty('User-Agent', 'UPCFinder/1.0')
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                def responseCode = connection.responseCode
+                logger.debug "responseCode=$responseCode"
+
+                String responseText
+                if (responseCode == 200) {
+                    responseText = connection.inputStream.text
+                } else if (responseCode == 429) {
+                    // Rate limited via HTTP status
+                    logger.warn "Rate limited (HTTP 429) for upc=$upc, retry ${retries + 1}/${MAX_RETRIES}"
+                    retries++
+                    if (retries <= MAX_RETRIES) {
+                        Thread.sleep(RETRY_DELAY_MS)
+                        continue
+                    }
+                    return null
+                } else {
+                    // Try to read error stream
+                    responseText = connection.errorStream?.text
+                    if (!responseText) {
+                        logger.warn "API returned HTTP $responseCode for upc=$upc with no body"
+                        return null
+                    }
+                }
+
+                logger.debug "response=$responseText"
+
+                def jsonSlurper = new JsonSlurper()
+                def jsonResponse = jsonSlurper.parseText(responseText)
+
+                // Handle rate limiting in JSON response
+                if (jsonResponse.code == 'TOO_FAST') {
+                    logger.warn "Rate limited (TOO_FAST) for upc=$upc, retry ${retries + 1}/${MAX_RETRIES}"
+                    retries++
+                    if (retries <= MAX_RETRIES) {
+                        Thread.sleep(RETRY_DELAY_MS)
+                        continue
+                    }
+                    return null
+                }
+
+                if (jsonResponse.code != 'OK' || jsonResponse.total == 0 || !jsonResponse.items) {
+                    logger.info "UPC not found: upc=$upc, code=${jsonResponse.code}, total=${jsonResponse.total}"
+                    return null
+                }
+
+                def item = jsonResponse.items[0]
+                def productInfo = [
+                    title      : item.title ?: '',
+                    brand      : item.brand ?: '',
+                    description: item.description ?: '',
+                    upc        : item.upc ?: upc,
+                    ean        : item.ean ?: '',
+                    model      : item.model ?: '',
+                    color      : item.color ?: '',
+                    size       : item.size ?: '',
+                    dimension  : item.dimension ?: '',
+                    weight     : item.weight ?: '',
+                    category   : item.category ?: '',
+                    currency   : item.currency ?: '',
+                    lowest_price : item.lowest_recorded_price ?: '',
+                    highest_price: item.highest_recorded_price ?: '',
+                    images     : item.images ?: [],
+                ]
+
+                logger.info "Found product: ${productInfo.title} (brand: ${productInfo.brand})"
+                return productInfo
+
+            } catch (Exception e) {
+                logger.error "Error looking up UPC $upc: ${e.message}"
+                return null
+            }
         }
-        return info
+        return null
     }
 
-  /**
-  * <p>Find for a upc (bar code) using all configurated UPC find sites.</p>
-  * @param upcs Universal Product Code array
-  * @see <a href="http://en.wikipedia.org/wiki/Universal_Product_Code">upc</a>
-  * @return Product information
-  */  
-	static Object find(String[] upcs){
-        def info = null
-        def response = null
-        logger.info "Finding UPC... > find(String[] upc)"        
-        upcs.each{upc->
-          upcFinders.each{upcFinderSite ->
-              if(info == null)
-                  info = find(upcFinderSite, upc)
-          }
-          if(info != null) {
-            if(response == null)
-              response = [:]
-            response.put upc, info
-          }
+    /**
+     * <p>Find product info for multiple UPC codes.</p>
+     * @param upcs Array of Universal Product Codes
+     * @return Map of upc -> product info for found items, or null if none found
+     */
+    static Map find(String[] upcs) {
+        def foundProducts = [:]
+        logger.info "Finding UPC codes: ${upcs}"
+        upcs.each { upc ->
+            def productInfo = find(upc)
+            if (productInfo != null) {
+                foundProducts[upc] = productInfo
+            }
         }
-        return response
+        return foundProducts.isEmpty() ? null : foundProducts
     }
 
-  /**
-  * <p>Find for upc (bar code) using all configurated UPC find sites.</p>
-  * <p>This method can be called from command line as:</p>
-  * <pre>
-  * java -cp build/libs/upcfinder.jar com.josuemb.upcfinder.xmlrpc.UPCFinder 7501003631046
-  * </pre>
-  * @param args Universal Product Code list
-  * @see <a href="http://en.wikipedia.org/wiki/Universal_Product_Code">upc</a>
-  * @return One line for each product with upc=information format 
-  */  
-	static main(args) {
-		if(args.size() < 1) {
-			println "UPCFinder code1[, code2, ..., code n]"
-		}
-		def itemInformation
-		args.each {upcCode ->
-			itemInformation = find(upcCode)
-			println "$upcCode=$itemInformation"
-		}
-	}
+    /**
+     * <p>Command line entry point.</p>
+     * <pre>
+     * java -cp build/libs/upcfinder.jar com.josuemb.upcfinder.xmlrpc.UPCFinder 0049000006346
+     * </pre>
+     * @param args Universal Product Code list
+     */
+    static main(args) {
+        if (args.size() < 1) {
+            println "UPCFinder code1[, code2, ..., code n]"
+            return
+        }
+        args.each { upcCode ->
+            def itemInformation = find(upcCode)
+            println "$upcCode=$itemInformation"
+        }
+    }
 }

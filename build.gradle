@@ -1,33 +1,39 @@
+plugins {
+    id 'groovy'
+    id 'eclipse'
+}
+
 //Configuration
-version = '0.0.1'
-mainClass='com.josuemb.upcfinder.xmlrpc.UPCFinder'
-sourceCompatibility = '1.6'
-targetCompatibility = '1.6'
+version = '0.0.2'
+def mainClass = 'com.josuemb.upcfinder.xmlrpc.UPCFinder'
+sourceCompatibility = '17'
+targetCompatibility = '17'
 
 //Default task
-defaultTasks "help"
-
-//Plugins section
-apply plugin: 'groovy'
-apply plugin: 'eclipse'
+defaultTasks "showHelp"
 
 //Source File Directory
-srcDir = file('src')
+def srcDir = file('src')
 
-//Repositories for dendencies.
+//Repositories for dependencies.
 repositories {
     mavenCentral()
 }
 
 //Dependencies for this project
 dependencies {
-    groovy group: 'org.codehaus.groovy', name: 'groovy', version: '3.0.18'
-    compile 'ch.qos.logback:logback-core:1.4.8'
-    compile 'ch.qos.logback:logback-classic:1.4.8'
-    compile 'org.slf4j:slf4j-api:2.0.7'
-    compile 'org.codehaus.groovy:groovy-xmlrpc:0.8'
-    compile 'jivesoftware:smack:3.1.0'
-    testCompile 'junit:junit:4.13.2'
+    implementation 'org.apache.groovy:groovy:4.0.24'
+    implementation 'org.apache.groovy:groovy-json:4.0.24'
+    implementation 'ch.qos.logback:logback-core:1.5.12'
+    implementation 'ch.qos.logback:logback-classic:1.5.12'
+    implementation 'org.slf4j:slf4j-api:2.0.16'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+}
+
+// Use JUnit Platform for tests
+tasks.named('test') {
+    useJUnitPlatform()
 }
 
 //Get the list for all files sended
@@ -42,14 +48,15 @@ jar {
                    'Implementation-Version': version,
                    'Implementation-Vendor-Id': 'josuemb@gmail.com',
                    'Main-Class': mainClass,
-                   'Class-Path': getManifestClassPath(configurations.runtime.resolve())
+                   'Class-Path': getManifestClassPath(configurations.runtimeClasspath.resolve())
     }
 }
 
 //Show Help
-task help() {
-  description = 'Show help'
-  println """\
+tasks.register('showHelp') {
+    description = 'Show help'
+    doLast {
+        println """\
 
 Common tasks:
 gradle zip - Generate zip distribution file.
@@ -58,25 +65,27 @@ gradle bz2 - Generate tar.bz2 distribution file.
 gradle -q -t -all Print complete task list (with description).
 
 """
+    }
 }
 
 //Generate zip distribution file
-task zip(type: Zip, dependsOn:['clean','jar','javadoc','groovydoc']) {
+tasks.register('zip', Zip) {
+    dependsOn 'clean', 'jar', 'javadoc', 'groovydoc'
     description = 'Generate zip distribution file.'
-    //Put all files into a directory named as the proyect name and version.    
-    into("$project.name-$version"){     
-      from jar.archivePath //Includes jar file
+    //Put all files into a directory named as the project name and version.
+    into("$project.name-$version"){
+      from jar.archiveFile //Includes jar file
       from 'README' //Includes README file
       from 'build.gradle' //Includes build.gradle file
-      //Put all dependency jar files into 'libs' directory      
+      //Put all dependency jar files into 'libs' directory
       into(libsDirName) {
-          from configurations.runtime //Includes all jar dependencifiles
+          from configurations.runtimeClasspath //Includes all jar dependency files
       }
       //Put all generated documentation into 'docs' directory
       into(docsDir.name){
         from docsDir //Includes all docs
       }
-      //Put all source files into 'src' directory  
+      //Put all source files into 'src' directory
       into(srcDir.name){
         from srcDir //Includes all source files
       }
@@ -84,24 +93,25 @@ task zip(type: Zip, dependsOn:['clean','jar','javadoc','groovydoc']) {
 }
 
 //Generate tar.gz distribution file
-task gzip(type: Tar, dependsOn:['clean','jar','javadoc','groovydoc']) {
+tasks.register('gzip', Tar) {
+    dependsOn 'clean', 'jar', 'javadoc', 'groovydoc'
     description = 'Generate tar.gz distribution file'
     compression = Compression.GZIP //Set compression mode
-    extension = 'tar.gz' //Set extension for the destination file
-    //Put all files into a directory named as the proyect name and version.    
-    into("$project.name-$version"){     
-      from jar.archivePath //Includes jar file
+    archiveExtension = 'tar.gz' //Set extension for the destination file
+    //Put all files into a directory named as the project name and version.
+    into("$project.name-$version"){
+      from jar.archiveFile //Includes jar file
       from 'README' //Includes README file
       from 'build.gradle' //Includes build.gradle file
-      //Put all dependency jar files into 'libs' directory      
+      //Put all dependency jar files into 'libs' directory
       into(libsDirName) {
-          from configurations.runtime //Includes all jar dependencifiles
+          from configurations.runtimeClasspath //Includes all jar dependency files
       }
       //Put all generated documentation into 'docs' directory
       into(docsDir.name){
         from docsDir //Includes all docs
       }
-      //Put all source files into 'src' directory  
+      //Put all source files into 'src' directory
       into(srcDir.name){
         from srcDir //Includes all source files
       }
@@ -109,24 +119,25 @@ task gzip(type: Tar, dependsOn:['clean','jar','javadoc','groovydoc']) {
 }
 
 //Generate tar.bz2 distribution file
-task bz2(type: Tar, dependsOn:['clean','jar','javadoc','groovydoc']) {
+tasks.register('bz2', Tar) {
+    dependsOn 'clean', 'jar', 'javadoc', 'groovydoc'
     description = 'Generate tar.bz2 distribution file'
     compression = Compression.BZIP2 //Set compression mode
-    extension = 'tar.bz2' //Set extension for the destination file
-    //Put all files into a directory named as the proyect name and version.    
-    into("$project.name-$version"){     
-      from jar.archivePath //Includes jar file
+    archiveExtension = 'tar.bz2' //Set extension for the destination file
+    //Put all files into a directory named as the project name and version.
+    into("$project.name-$version"){
+      from jar.archiveFile //Includes jar file
       from 'README' //Includes README file
       from 'build.gradle' //Includes build.gradle file
-      //Put all dependency jar files into 'libs' directory      
+      //Put all dependency jar files into 'libs' directory
       into(libsDirName) {
-          from configurations.runtime //Includes all jar dependencifiles
+          from configurations.runtimeClasspath //Includes all jar dependency files
       }
       //Put all generated documentation into 'docs' directory
       into(docsDir.name){
         from docsDir //Includes all docs
       }
-      //Put all source files into 'src' directory  
+      //Put all source files into 'src' directory
       into(srcDir.name){
         from srcDir //Includes all source files
       }

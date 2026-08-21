@@ -22,8 +22,8 @@ repositories {
 
 //Dependencies for this project
 dependencies {
-    implementation 'org.apache.groovy:groovy:4.0.24'
-    implementation 'org.apache.groovy:groovy-json:4.0.24'
+    implementation 'org.apache.groovy:groovy:4.0.33'
+    implementation 'org.apache.groovy:groovy-json:4.0.33'
     implementation 'ch.qos.logback:logback-core:1.6.3'
     implementation 'ch.qos.logback:logback-classic:1.6.3'
     implementation 'org.slf4j:slf4j-api:2.0.18'

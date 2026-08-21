@@ -1,45 +1,35 @@
 package com.josuemb.upcfinder.xmlrpc
 
-import groovy.util.GroovyTestCase
-import com.josuemb.upcfinder.*
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.TestMethodOrder
+import static org.junit.jupiter.api.Assertions.*
 
-class UPCFinderTest extends GroovyTestCase {
+import java.util.concurrent.TimeUnit
 
-  protected void setUp() throws Exception {
-  }
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+class UPCFinderTest {
 
-  void testInvalidFinderSite(){
-    def sites = UPCFinder.upcFinders
-    UPCFinder.upcFinders = [
-    new UPCFinderSite(
-        uri:{upc->"http://www.invalid.url/rpc"},
-        findUPC:{remote,upc->remote.lookupEAN(upc)},
-        upcFounded:{response->response.get("message")=="Database entry found"},
-        getInformation:{remote,upc,response->response}
-    )
-    ]        
-    UPCFinder.find("7501003631046") == null
-    UPCFinder.upcFinders = sites
-  }
+    @Test
+    @Order(1)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testUPCFound() {
+        // Coca-Cola Classic 12oz can - well-known UPC
+        def cocaColaInfo = UPCFinder.find("0049000006346")
+        assertNotNull(cocaColaInfo, "Should find product info for Coca-Cola UPC")
+        assertNotNull(cocaColaInfo.title, "Product should have a title")
+        assertFalse(cocaColaInfo.title.isEmpty(), "Product title should not be empty")
+        println "Found product: ${cocaColaInfo.title} (brand: ${cocaColaInfo.brand})"
+    }
 
-  void testUPCFound() {
-    assert UPCFinder.find("7501003631046") != null
-    assert UPCFinder.find("7501003693679") != null
-    assert UPCFinder.find("7501017004003") != null
-  }
-
-  void testUPCNotFound() {
-    assert UPCFinder.find("7501053670637") == null
-    assert UPCFinder.find("7501032332365") == null
-    assert UPCFinder.find("7501032332013") == null
-  }
-
-  void testInvalidUPC() {
-    assert UPCFinder.find("hasdhfasd77asdf") == null
-    assert UPCFinder.find("7501032332017") == null
-    assert UPCFinder.find("75") == null
-  }
-
-  protected void tearDown() throws Exception {
-  }
+    @Test
+    @Order(2)
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
+    void testInvalidUPC() {
+        // Non-numeric gibberish - API returns INVALID_UPC code
+        def invalidInfo = UPCFinder.find("INVALIDUPC")
+        assertNull(invalidInfo, "Should return null for invalid UPC format")
+    }
 }

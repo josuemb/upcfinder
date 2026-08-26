@@ -6,8 +6,8 @@ plugins {
 //Configuration
 version = '0.0.2'
 def mainClass = 'com.josuemb.upcfinder.xmlrpc.UPCFinder'
-sourceCompatibility = '17'
-targetCompatibility = '17'
+sourceCompatibility = '21'
+targetCompatibility = '21'
 
 //Default task
 defaultTasks "showHelp"
@@ -22,13 +22,17 @@ repositories {
 
 //Dependencies for this project
 dependencies {
-    implementation 'org.apache.groovy:groovy:4.0.33'
-    implementation 'org.apache.groovy:groovy-json:4.0.33'
+    implementation 'org.apache.groovy:groovy:5.1.0'
+    implementation 'org.apache.groovy:groovy-json:5.1.0'
     implementation 'ch.qos.logback:logback-core:1.6.3'
     implementation 'ch.qos.logback:logback-classic:1.6.3'
     implementation 'org.slf4j:slf4j-api:2.0.18'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.4'
+    // Gradle bundles an older junit-platform-launcher than the 5.14.x engine
+    // expects; pin the matching launcher so the platform jars stay aligned
+    // (otherwise: "OutputDirectoryCreator not available ... unaligned versions").
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.14.4'
 }
 
 // Use JUnit Platform for tests
